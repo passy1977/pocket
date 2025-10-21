@@ -1,0 +1,6 @@
+[submodule "pocket-backend"]
+	path = pocket-backend
+	url = https://github.com/passy1977/pocket-backend.git
+[submodule "pocket-web-backend"]
+	path = pocket-web-backend
+	url = https://github.com/passy1977/pocket-web-backend.git
