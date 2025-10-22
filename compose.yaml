@@ -1,6 +1,4 @@
 
-version: '3.8'
-
 services:
   # MariaDB Database
   pocket-db:
@@ -12,7 +10,7 @@ services:
       - "3306:3306"
     volumes:
       - pocket_db_data:/var/lib/mysql
-      - ./scripts/pocket5.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./docker-volumes/pocket5.sql:/docker-entrypoint-initdb.d/init.sql:ro
     environment:
       # Database configuration
       MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root_password_change_me}
@@ -51,14 +49,19 @@ services:
       # Application logs
       - pocket_logs:/var/log/pocket
       # Optional: Custom configuration override
-      - ./scripts/pocket5-config.yaml:/var/www/scripts/pocket5-config.yaml:ro
+      - ./docker-volumes/pocket5-config.yaml:/var/www/scripts/pocket5-config.yaml:ro
     environment:
       # Spring profiles
       SPRING_PROFILES_ACTIVE: docker,production
       
       # Database configuration
+      DB_HOST: pocket-db
+      DB_PORT: 3306
+      DB_NAME: pocket5
       DB_USERNAME: ${DB_USERNAME:-pocket_user}
       DB_PASSWORD: ${DB_PASSWORD:-user_password_change_me}
+      SPRING_DATASOURCE_USERNAME: ${DB_USERNAME:-pocket_user}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-user_password_change_me}
       
       # Security configuration (MUST BE CHANGED IN PRODUCTION)
       AES_CBC_IV: ${AES_CBC_IV:-default_16char_iv}
@@ -132,6 +135,9 @@ services:
       SESSION_EXPIRATION: ${WEB_BACKEND_SESSION_EXPIRATION:-300}
       
       # Database configuration
+      DB_HOST: pocket-db
+      DB_PORT: 3306
+      DB_NAME: pocket5
       DB_USERNAME: ${DB_USERNAME:-pocket_user}
       DB_PASSWORD: ${DB_PASSWORD:-user_password_change_me}
       
@@ -159,48 +165,20 @@ services:
     tmpfs:
       - /tmp:noexec,nosuid,size=100m
 
-  # Optional: Nginx reverse proxy for production
-  nginx:
-    image: nginx:alpine
-    container_name: pocket-nginx
-    networks:
-      - pocket-network
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/ssl:/etc/nginx/ssl:ro
-      - nginx_logs:/var/log/nginx
-    environment:
-      - NGINX_ENVSUBST_TEMPLATE_DIR=/etc/nginx/templates
-      - NGINX_ENVSUBST_TEMPLATE_SUFFIX=.template
-      - BACKEND_HOST=pocket-backend
-      - BACKEND_PORT=8081
-      - WEB_BACKEND_HOST=pocket-web-backend
-      - WEB_BACKEND_PORT=${WEB_BACKEND_PORT:-8080}
-    depends_on:
-      - pocket-backend
-      - pocket-web-backend
-    restart: unless-stopped
-    profiles:
-      - production  # Only start with --profile production
-
 # Named volumes for data persistence
 volumes:
   pocket_db_data:
+    name: pocket-db-data
     driver: local
   pocket_logs:
+    name: pocket-logs
     driver: local
   pocket_web_logs:
-    driver: local
-  nginx_logs:
+    name: pocket-web-logs
     driver: local
 
 # Custom network for service communication
 networks:
   pocket-network:
-    driver: bridge
-    ipam:
-      config:
-        - subnet: 172.20.0.0/16
+    name: pocket-network
+    external: true

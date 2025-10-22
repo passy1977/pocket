@@ -1,0 +1,4 @@
+.env
+start_pocket.sh
+stop_pocket.sh
+docker-volumes

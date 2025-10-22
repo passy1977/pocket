@@ -10,8 +10,7 @@ set -e  # Exit on any error
 # Configuration
 NETWORK=pocket-network
 ENV_FILE=".env"
-VOLUMES_DIR="docker_volumes"
-NGINX_DIR="nginx"
+VOLUMES_DIR="docker-volumes"
 SCRIPTS_DIR="scripts"
 
 # Colors for output
@@ -35,10 +34,10 @@ log_step() { echo -e "${CYAN}[STEP]${NC} $1"; }
 show_banner() {
     echo -e "${CYAN}"
     echo "╔══════════════════════════════════════════════════════════════╗"
-    echo "║                    POCKET FULL STACK SETUP                  ║"
+    echo "║                    POCKET FULL STACK SETUP                   ║"
     echo "║                                                              ║"
-    echo "║  🚀 Java Backend + Rust Web Backend + MariaDB + Nginx       ║"
-    echo "║  🔒 Secure configuration with auto-generated secrets        ║"
+    echo "║  🚀 Java Backend + Rust Web Backend + MariaDB                ║"
+    echo "║  🔒 Secure configuration with auto-generated secrets         ║"
     echo "║  🐳 Docker/Podman compatible                                 ║"
     echo "╚══════════════════════════════════════════════════════════════╝"
     echo -e "${NC}"
@@ -70,6 +69,11 @@ detect_container_runtime() {
             exit 1
         fi
         COMPOSE_CMD="docker compose"
+    fi
+
+    if [ "$CONTAINER_RUNTIME" = "docker" ]; then
+        CONTAINER_RUNTIME="sudo $CONTAINER_RUNTIME"
+        COMPOSE_CMD="sudo $COMPOSE_CMD"
     fi
 }
 
@@ -133,12 +137,9 @@ setup_directories() {
     
     # Create individual volume directories
     local volumes=(
-        "pocket_db_data"
-        "pocket_logs"
-        "pocket_web_logs"
-        "nginx_logs"
-        "nginx_ssl"
-        "nginx_config"
+        "pocket-db-data"
+        "pocket-logs"
+        "pocket-web-logs"
     )
     
     for volume in "${volumes[@]}"; do
@@ -154,8 +155,8 @@ setup_directories() {
     chmod 755 "$VOLUMES_DIR"/*
     
     # Set specific permissions for database directory
-    if [ -d "$VOLUMES_DIR/pocket_db_data" ]; then
-        chmod 777 "$VOLUMES_DIR/pocket_db_data"  # MariaDB needs write access
+    if [ -d "$VOLUMES_DIR/pocket-db-data" ]; then
+        chmod 777 "$VOLUMES_DIR/pocket-db-data"  # MariaDB needs write access
     fi
     
     log_success "All volume directories created and configured"
@@ -186,126 +187,6 @@ copy_configuration_files() {
     else
         log_info "pocket5-config.yaml not found, will use default configuration"
     fi
-    
-    # Setup nginx configuration
-    setup_nginx_config
-}
-
-# Function to setup nginx configuration
-setup_nginx_config() {
-    log_step "Setting up Nginx configuration..."
-    
-    # Create nginx config directory if it doesn't exist
-    if [ ! -d "$NGINX_DIR" ]; then
-        mkdir -p "$NGINX_DIR"
-    fi
-    
-    # Create nginx.conf if it doesn't exist
-    if [ ! -f "$NGINX_DIR/nginx.conf" ]; then
-        cat > "$NGINX_DIR/nginx.conf" << 'EOF'
-events {
-    worker_connections 1024;
-}
-
-http {
-    include       /etc/nginx/mime.types;
-    default_type  application/octet-stream;
-    
-    # Logging
-    log_format main '$remote_addr - $remote_user [$time_local] "$request" '
-                    '$status $body_bytes_sent "$http_referer" '
-                    '"$http_user_agent" "$http_x_forwarded_for"';
-    
-    access_log /var/log/nginx/access.log main;
-    error_log /var/log/nginx/error.log warn;
-    
-    # Basic settings
-    sendfile on;
-    tcp_nopush on;
-    tcp_nodelay on;
-    keepalive_timeout 65;
-    types_hash_max_size 2048;
-    
-    # Gzip compression
-    gzip on;
-    gzip_vary on;
-    gzip_min_length 10240;
-    gzip_proxied expired no-cache no-store private must-revalidate;
-    gzip_types text/plain text/css text/xml text/javascript application/javascript application/xml+rss application/json;
-    
-    # Upstream servers
-    upstream pocket_backend {
-        server pocket-backend:8081;
-    }
-    
-    upstream pocket_web_backend {
-        server pocket-web-backend:8080;
-    }
-    
-    # Main server block
-    server {
-        listen 80;
-        server_name localhost;
-        
-        # Security headers
-        add_header X-Frame-Options DENY;
-        add_header X-Content-Type-Options nosniff;
-        add_header X-XSS-Protection "1; mode=block";
-        
-        # Java Backend API
-        location /api/ {
-            proxy_pass http://pocket_backend;
-            proxy_set_header Host $host;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto $scheme;
-            proxy_connect_timeout 30s;
-            proxy_send_timeout 30s;
-            proxy_read_timeout 30s;
-        }
-        
-        # Rust Web Backend
-        location /web/ {
-            proxy_pass http://pocket_web_backend/;
-            proxy_set_header Host $host;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto $scheme;
-            proxy_connect_timeout 30s;
-            proxy_send_timeout 30s;
-            proxy_read_timeout 30s;
-        }
-        
-        # Health checks
-        location /health {
-            proxy_pass http://pocket_web_backend/health;
-            proxy_set_header Host $host;
-        }
-        
-        location /actuator/health {
-            proxy_pass http://pocket_backend/actuator/health;
-            proxy_set_header Host $host;
-        }
-        
-        # Default location
-        location / {
-            proxy_pass http://pocket_web_backend;
-            proxy_set_header Host $host;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto $scheme;
-        }
-    }
-}
-EOF
-        log_success "Created nginx.conf"
-    else
-        log_info "nginx.conf already exists, skipping creation"
-    fi
-    
-    # Copy nginx config to volume
-    cp "$NGINX_DIR/nginx.conf" "$VOLUMES_DIR/nginx_config/"
-    log_success "Copied nginx configuration to volume"
 }
 
 # Function to collect database configuration
@@ -385,17 +266,17 @@ collect_java_backend_config() {
         read -p "Generate secure admin password automatically? [Y/n]: " auto_admin_pass
         if [[ "$auto_admin_pass" =~ ^[Nn]$ ]]; then
             while true; do
-                read -s -p "Enter admin password: " ADMIN_PASSWD
+                read -s -p "Enter admin password (exactly 32 characters): " ADMIN_PASSWD
                 echo
-                if [ ${#ADMIN_PASSWD} -ge 8 ]; then
+                if [ ${#ADMIN_PASSWD} -eq 32 ]; then
                     break
                 else
-                    log_error "Password must be at least 8 characters long"
+                    log_error "Admin password must be exactly 32 characters long (current: ${#ADMIN_PASSWD})"
                 fi
             done
         else
             ADMIN_PASSWD=$(generate_password 32)
-            log_success "Generated secure admin password"
+            log_success "Generated secure admin password (32 characters)"
         fi
     fi
     
@@ -405,14 +286,15 @@ collect_java_backend_config() {
         SERVER_URL=${SERVER_URL:-http://localhost:8081}
     fi
     
+    # Extract port from SERVER_URL automatically
     if [ -z "$SERVER_PORT" ]; then
-        while true; do
-            read -p "Java Backend port [8081]: " SERVER_PORT
-            SERVER_PORT=${SERVER_PORT:-8081}
-            if validate_port "$SERVER_PORT"; then
-                break
-            fi
-        done
+        EXTRACTED_PORT=$(echo "$SERVER_URL" | sed -n 's/.*:\([0-9]\+\).*/\1/p')
+        if [ -n "$EXTRACTED_PORT" ]; then
+            SERVER_PORT=$EXTRACTED_PORT
+        else
+            SERVER_PORT=8081
+        fi
+        log_success "Using port $SERVER_PORT from Server URL"
     fi
     
     if [ -z "$CORS_ADDITIONAL_ORIGINS" ]; then
@@ -437,13 +319,13 @@ collect_rust_backend_config() {
     echo "================================="
     
     if [ -z "$WEB_BACKEND_ADDRESS" ]; then
-        read -p "Web Backend Address [0.0.0.0]: " WEB_BACKEND_ADDRESS
+        read -p "Web Backend address [0.0.0.0]: " WEB_BACKEND_ADDRESS
         WEB_BACKEND_ADDRESS=${WEB_BACKEND_ADDRESS:-0.0.0.0}
     fi
     
     if [ -z "$WEB_BACKEND_PORT" ]; then
         while true; do
-            read -p "Web Backend Port [8080]: " WEB_BACKEND_PORT
+            read -p "Web Backend port [8080]: " WEB_BACKEND_PORT
             WEB_BACKEND_PORT=${WEB_BACKEND_PORT:-8080}
             if validate_port "$WEB_BACKEND_PORT"; then
                 break
@@ -485,16 +367,6 @@ collect_general_config() {
         echo "Available log levels: DEBUG, INFO, WARN, ERROR"
         read -p "Log Level [INFO]: " LOG_LEVEL
         LOG_LEVEL=${LOG_LEVEL:-INFO}
-    fi
-    
-    # Nginx configuration
-    read -p "Enable Nginx reverse proxy? [Y/n]: " enable_nginx
-    if [[ ! "$enable_nginx" =~ ^[Nn]$ ]]; then
-        ENABLE_NGINX=true
-        log_success "Nginx reverse proxy will be enabled"
-    else
-        ENABLE_NGINX=false
-        log_info "Nginx reverse proxy will be disabled"
     fi
 }
 
@@ -545,7 +417,6 @@ WEB_BACKEND_SESSION_EXPIRATION=$WEB_BACKEND_SESSION_EXPIRATION
 # GENERAL CONFIGURATION
 # ===========================================
 LOG_LEVEL=$LOG_LEVEL
-ENABLE_NGINX=$ENABLE_NGINX
 
 # ===========================================
 # INTERNAL CONFIGURATION (DO NOT MODIFY)
@@ -584,7 +455,6 @@ display_configuration_summary() {
     echo
     echo "⚙️  General:"
     echo "   Log Level: $LOG_LEVEL"
-    echo "   Nginx Enabled: $ENABLE_NGINX"
     echo "   Container Runtime: $CONTAINER_RUNTIME"
     echo
     echo "📁 Volumes Directory: $VOLUMES_DIR"
@@ -620,22 +490,14 @@ NC='\033[0m'
 echo -e "\${BLUE}🚀 Starting Pocket Full Stack...\${NC}"
 
 # Start services
-if [ "\$ENABLE_NGINX" = "true" ]; then
-    echo -e "\${BLUE}Starting with Nginx reverse proxy...\${NC}"
-    $COMPOSE_CMD --profile production up -d
-else
-    echo -e "\${BLUE}Starting without Nginx...\${NC}"
-    $COMPOSE_CMD up -d pocket-db pocket-backend pocket-web-backend
-fi
+echo -e "\${BLUE}Starting services...\${NC}"
+$COMPOSE_CMD up -d pocket-db pocket-backend pocket-web-backend
 
 echo -e "\${GREEN}✅ Services started successfully!\${NC}"
 echo
 echo "📋 Service URLs:"
 echo "   Java Backend: \$SERVER_URL"
 echo "   Rust Web Backend: http://localhost:\$WEB_BACKEND_PORT"
-if [ "\$ENABLE_NGINX" = "true" ]; then
-    echo "   Nginx Proxy: http://localhost:80"
-fi
 echo "   Database: localhost:3306"
 echo
 echo "🔧 Management commands:"
@@ -677,6 +539,84 @@ EOF
     log_success "Created stop_pocket.sh"
 }
 
+# Function to create clean script
+create_clean_script() {
+    log_step "Creating clean script..."
+    
+    cat > "clean_pocket.sh" << EOF
+#!/bin/bash
+
+# Pocket Full Stack Clean Script
+# This script removes all containers, volumes, and configuration files
+# Generated by setup_environment.sh
+
+set -e
+
+# Colors
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+GREEN='\033[0;32m'
+NC='\033[0m'
+
+echo -e "\${RED}⚠️  WARNING: This will completely clean the Pocket environment!\${NC}"
+echo -e "\${YELLOW}This action will:\${NC}"
+echo "  - Stop all running containers"
+echo "  - Remove all containers"
+echo "  - Remove all volumes (DATABASE WILL BE DELETED!)"
+echo "  - Remove configuration files (.env)"
+echo "  - Remove volume directories ($VOLUMES_DIR/)"
+echo
+
+read -p "Are you sure you want to continue? Type 'yes' to confirm: " confirm
+
+if [ "\\\$confirm" != "yes" ]; then
+    echo -e "\${BLUE}Operation cancelled.\${NC}"
+    exit 0
+fi
+
+echo
+echo -e "\${BLUE}🧹 Starting cleanup process...\${NC}"
+echo
+
+# Stop and remove containers and volumes
+echo -e "\${BLUE}Stopping and removing containers...\${NC}"
+$COMPOSE_CMD down -v 2>/dev/null || true
+echo -e "\${GREEN}✅ Containers and volumes removed\${NC}"
+
+# Remove .env file
+if [ -f ".env" ]; then
+    echo -e "\${BLUE}Removing .env configuration...\${NC}"
+    rm -f .env
+    echo -e "\${GREEN}✅ .env file removed\${NC}"
+fi
+
+# Remove volume directories
+if [ -d "$VOLUMES_DIR" ]; then
+    echo -e "\${BLUE}Removing volume directories...\${NC}"
+    rm -rf $VOLUMES_DIR
+    echo -e "\${GREEN}✅ Volume directories removed\${NC}"
+fi
+
+# Remove generated scripts (optional)
+read -p "Remove generated scripts (start_pocket.sh, stop_pocket.sh, clean_pocket.sh)? [y/N]: " remove_scripts
+if [[ "\\\$remove_scripts" =~ ^[Yy]\$ ]]; then
+    rm -f start_pocket.sh stop_pocket.sh clean_pocket.sh
+    echo -e "\${GREEN}✅ Generated scripts removed\${NC}"
+fi
+
+echo
+echo -e "\${GREEN}🎉 Cleanup completed successfully!\${NC}"
+echo
+echo "To set up the environment again, run:"
+echo "  ./setup_environment.sh"
+echo
+EOF
+    
+    chmod +x "clean_pocket.sh"
+    log_success "Created clean_pocket.sh"
+}
+
 # Function to display final information
 display_final_info() {
     echo
@@ -686,10 +626,10 @@ display_final_info() {
     echo "==================="
     echo "✅ Environment configuration (.env)"
     echo "✅ Volume directories ($VOLUMES_DIR/)"
-    echo "✅ Nginx configuration ($NGINX_DIR/)"
     echo "✅ Network configuration"
     echo "✅ Startup script (start_pocket.sh)"
     echo "✅ Stop script (stop_pocket.sh)"
+    echo "✅ Clean script (clean_pocket.sh)"
     echo
     echo "🚀 Next steps:"
     echo "============="
@@ -730,11 +670,11 @@ main() {
         read -p "Do you want to reconfigure? [y/N]: " reconfigure
         if [[ ! "$reconfigure" =~ ^[Yy]$ ]]; then
             log_info "Using existing configuration"
-            setup_network
             setup_directories
             copy_configuration_files
             create_startup_script
             create_stop_script
+            create_clean_script
             display_configuration_summary
             display_final_info
             exit 0
@@ -762,6 +702,7 @@ main() {
     save_environment_config
     create_startup_script
     create_stop_script
+    create_clean_script
     
     # Display summary
     echo
