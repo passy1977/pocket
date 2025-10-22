@@ -1,4 +1,5 @@
 .env
 start_pocket.sh
 stop_pocket.sh
+clean_pocket.sh
 docker-volumes
