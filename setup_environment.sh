@@ -318,19 +318,50 @@ collect_rust_backend_config() {
     log_config "🦀 Rust Web Backend Configuration"
     echo "================================="
     
+    # Web Backend URL
+    if [ -z "$WEB_BACKEND_URL" ]; then
+        while true; do
+            read -p "Web Backend URL [http://localhost:8080]: " WEB_BACKEND_URL
+            WEB_BACKEND_URL=${WEB_BACKEND_URL:-http://localhost:8080}
+            
+            # Check if URL uses https
+            if [[ "$WEB_BACKEND_URL" =~ ^https:// ]]; then
+                log_error "HTTPS is not supported. Please use HTTP."
+                WEB_BACKEND_URL=""
+                continue
+            fi
+            
+            # Check if URL is valid HTTP
+            if [[ "$WEB_BACKEND_URL" =~ ^http:// ]]; then
+                break
+            else
+                log_error "Invalid URL format. Please use http://host:port format."
+                WEB_BACKEND_URL=""
+            fi
+        done
+    fi
+    
+    # Extract address and port from WEB_BACKEND_URL
     if [ -z "$WEB_BACKEND_ADDRESS" ]; then
-        read -p "Web Backend address [0.0.0.0]: " WEB_BACKEND_ADDRESS
-        WEB_BACKEND_ADDRESS=${WEB_BACKEND_ADDRESS:-0.0.0.0}
+        # Extract host from URL (remove http:// and everything after :port or /)
+        EXTRACTED_HOST=$(echo "$WEB_BACKEND_URL" | sed -n 's|^http://\([^:/]*\).*|\1|p')
+        if [ "$EXTRACTED_HOST" = "localhost" ] || [ "$EXTRACTED_HOST" = "127.0.0.1" ]; then
+            WEB_BACKEND_ADDRESS="0.0.0.0"
+        else
+            WEB_BACKEND_ADDRESS="$EXTRACTED_HOST"
+        fi
+        log_success "Using address $WEB_BACKEND_ADDRESS"
     fi
     
     if [ -z "$WEB_BACKEND_PORT" ]; then
-        while true; do
-            read -p "Web Backend port [8080]: " WEB_BACKEND_PORT
-            WEB_BACKEND_PORT=${WEB_BACKEND_PORT:-8080}
-            if validate_port "$WEB_BACKEND_PORT"; then
-                break
-            fi
-        done
+        # Extract port from URL
+        EXTRACTED_PORT=$(echo "$WEB_BACKEND_URL" | sed -n 's/.*:\([0-9]\+\).*/\1/p')
+        if [ -n "$EXTRACTED_PORT" ]; then
+            WEB_BACKEND_PORT=$EXTRACTED_PORT
+        else
+            WEB_BACKEND_PORT=8080
+        fi
+        log_success "Using port $WEB_BACKEND_PORT"
     fi
     
     if [ -z "$WEB_BACKEND_MAX_THREADS" ]; then
@@ -355,6 +386,10 @@ collect_rust_backend_config() {
                 log_error "Session expiration must be a positive number"
             fi
         done
+    fi
+    
+    if [ -z "$WEB_BACKEND_CORS_ALLOWED_ORIGINS" ]; then
+        read -p "Additional CORS origins (comma-separated) []: " WEB_BACKEND_CORS_ALLOWED_ORIGINS
     fi
 }
 
@@ -408,10 +443,12 @@ JVM_MIN_MEMORY=$JVM_MIN_MEMORY
 # ===========================================
 # RUST WEB BACKEND CONFIGURATION
 # ===========================================
+WEB_BACKEND_URL=$WEB_BACKEND_URL
 WEB_BACKEND_ADDRESS=$WEB_BACKEND_ADDRESS
 WEB_BACKEND_PORT=$WEB_BACKEND_PORT
 WEB_BACKEND_MAX_THREADS=$WEB_BACKEND_MAX_THREADS
 WEB_BACKEND_SESSION_EXPIRATION=$WEB_BACKEND_SESSION_EXPIRATION
+WEB_BACKEND_CORS_ALLOWED_ORIGINS=$WEB_BACKEND_CORS_ALLOWED_ORIGINS
 
 # ===========================================
 # GENERAL CONFIGURATION
@@ -448,10 +485,12 @@ display_configuration_summary() {
     echo "   JVM Memory: $JVM_MIN_MEMORY - $JVM_MAX_MEMORY"
     echo
     echo "🦀 Rust Web Backend:"
-    echo "   Address: $WEB_BACKEND_ADDRESS"
-    echo "   Port: $WEB_BACKEND_PORT"
+    echo "   URL: $WEB_BACKEND_URL"
     echo "   Max Threads: $WEB_BACKEND_MAX_THREADS"
     echo "   Session Expiration: $WEB_BACKEND_SESSION_EXPIRATION seconds"
+    if [ -n "$WEB_BACKEND_CORS_ALLOWED_ORIGINS" ]; then
+        echo "   CORS Origins: $WEB_BACKEND_CORS_ALLOWED_ORIGINS"
+    fi
     echo
     echo "⚙️  General:"
     echo "   Log Level: $LOG_LEVEL"
@@ -497,7 +536,7 @@ echo -e "\${GREEN}✅ Services started successfully!\${NC}"
 echo
 echo "📋 Service URLs:"
 echo "   Java Backend: \$SERVER_URL"
-echo "   Rust Web Backend: http://localhost:\$WEB_BACKEND_PORT"
+echo "   Rust Web Backend: \$WEB_BACKEND_URL"
 echo "   Database: localhost:3306"
 echo
 echo "🔧 Management commands:"
@@ -570,7 +609,7 @@ echo
 
 read -p "Are you sure you want to continue? Type 'yes' to confirm: " confirm
 
-if [ "\\\$confirm" != "yes" ]; then
+if [ "\$confirm" != "yes" ]; then
     echo -e "\${BLUE}Operation cancelled.\${NC}"
     exit 0
 fi
@@ -600,7 +639,7 @@ fi
 
 # Remove generated scripts (optional)
 read -p "Remove generated scripts (start_pocket.sh, stop_pocket.sh, clean_pocket.sh)? [y/N]: " remove_scripts
-if [[ "\\\$remove_scripts" =~ ^[Yy]\$ ]]; then
+if [[ "\$remove_scripts" =~ ^[Yy]\$ ]]; then
     rm -f start_pocket.sh stop_pocket.sh clean_pocket.sh
     echo -e "\${GREEN}✅ Generated scripts removed\${NC}"
 fi
