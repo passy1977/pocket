@@ -318,57 +318,44 @@ collect_rust_backend_config() {
     log_config "🦀 Rust Web Backend Configuration"
     echo "================================="
     
-    # Web Backend URL
-    if [ -z "$WEB_BACKEND_URL" ]; then
+    # Pocket Host
+    if [ -z "$POCKET_HOST" ]; then
+        read -p "Bind address/hostname [0.0.0.0]: " POCKET_HOST
+        POCKET_HOST=${POCKET_HOST:-0.0.0.0}
+        
+        # Convert localhost/127.0.0.1 to 0.0.0.0 for container binding
+        if [ "$POCKET_HOST" = "localhost" ] || [ "$POCKET_HOST" = "127.0.0.1" ]; then
+            POCKET_HOST="0.0.0.0"
+            log_info "Converting to 0.0.0.0 for container binding"
+        fi
+    fi
+    
+    # Pocket Port
+    if [ -z "$POCKET_PORT" ]; then
         while true; do
-            read -p "Web Backend URL [http://localhost:8080]: " WEB_BACKEND_URL
-            WEB_BACKEND_URL=${WEB_BACKEND_URL:-http://localhost:8080}
-            
-            # Check if URL uses https
-            if [[ "$WEB_BACKEND_URL" =~ ^https:// ]]; then
-                log_error "HTTPS is not supported. Please use HTTP."
-                WEB_BACKEND_URL=""
-                continue
-            fi
-            
-            # Check if URL is valid HTTP
-            if [[ "$WEB_BACKEND_URL" =~ ^http:// ]]; then
+            read -p "Server port [8080]: " POCKET_PORT
+            POCKET_PORT=${POCKET_PORT:-8080}
+            if validate_port "$POCKET_PORT"; then
                 break
-            else
-                log_error "Invalid URL format. Please use http://host:port format."
-                WEB_BACKEND_URL=""
             fi
         done
     fi
     
-    # Extract address and port from WEB_BACKEND_URL
-    if [ -z "$WEB_BACKEND_ADDRESS" ]; then
-        # Extract host from URL (remove http:// and everything after :port or /)
-        EXTRACTED_HOST=$(echo "$WEB_BACKEND_URL" | sed -n 's|^http://\([^:/]*\).*|\1|p')
-        if [ "$EXTRACTED_HOST" = "localhost" ] || [ "$EXTRACTED_HOST" = "127.0.0.1" ]; then
-            WEB_BACKEND_ADDRESS="0.0.0.0"
+    # Backend URL (optional, overrides auto-built URL for frontend)
+    if [ -z "$BACKEND_URL" ]; then
+        read -p "Custom frontend URL (optional, leave empty for auto: http://POCKET_HOST:POCKET_PORT) []: " BACKEND_URL
+        if [ -n "$BACKEND_URL" ]; then
+            log_success "Using custom backend URL: $BACKEND_URL"
         else
-            WEB_BACKEND_ADDRESS="$EXTRACTED_HOST"
+            log_info "Will use auto-built URL for frontend configuration"
         fi
-        log_success "Using address $WEB_BACKEND_ADDRESS"
     fi
     
-    if [ -z "$WEB_BACKEND_PORT" ]; then
-        # Extract port from URL
-        EXTRACTED_PORT=$(echo "$WEB_BACKEND_URL" | sed -n 's/.*:\([0-9]\+\).*/\1/p')
-        if [ -n "$EXTRACTED_PORT" ]; then
-            WEB_BACKEND_PORT=$EXTRACTED_PORT
-        else
-            WEB_BACKEND_PORT=8080
-        fi
-        log_success "Using port $WEB_BACKEND_PORT"
-    fi
-    
-    if [ -z "$WEB_BACKEND_MAX_THREADS" ]; then
+    if [ -z "$POCKET_MAX_THREADS" ]; then
         while true; do
-            read -p "Max Threads [2]: " WEB_BACKEND_MAX_THREADS
-            WEB_BACKEND_MAX_THREADS=${WEB_BACKEND_MAX_THREADS:-2}
-            if [[ "$WEB_BACKEND_MAX_THREADS" =~ ^[0-9]+$ ]] && [ "$WEB_BACKEND_MAX_THREADS" -gt 0 ]; then
+            read -p "Max Threads [2]: " POCKET_MAX_THREADS
+            POCKET_MAX_THREADS=${POCKET_MAX_THREADS:-2}
+            if [[ "$POCKET_MAX_THREADS" =~ ^[0-9]+$ ]] && [ "$POCKET_MAX_THREADS" -gt 0 ]; then
                 break
             else
                 log_error "Max threads must be a positive number"
@@ -376,11 +363,11 @@ collect_rust_backend_config() {
         done
     fi
     
-    if [ -z "$WEB_BACKEND_SESSION_EXPIRATION" ]; then
+    if [ -z "$POCKET_SESSION_EXPIRATION" ]; then
         while true; do
-            read -p "Session Expiration (seconds) [300]: " WEB_BACKEND_SESSION_EXPIRATION
-            WEB_BACKEND_SESSION_EXPIRATION=${WEB_BACKEND_SESSION_EXPIRATION:-300}
-            if [[ "$WEB_BACKEND_SESSION_EXPIRATION" =~ ^[0-9]+$ ]] && [ "$WEB_BACKEND_SESSION_EXPIRATION" -gt 0 ]; then
+            read -p "Session Expiration (seconds) [300]: " POCKET_SESSION_EXPIRATION
+            POCKET_SESSION_EXPIRATION=${POCKET_SESSION_EXPIRATION:-300}
+            if [[ "$POCKET_SESSION_EXPIRATION" =~ ^[0-9]+$ ]] && [ "$POCKET_SESSION_EXPIRATION" -gt 0 ]; then
                 break
             else
                 log_error "Session expiration must be a positive number"
@@ -388,8 +375,8 @@ collect_rust_backend_config() {
         done
     fi
     
-    if [ -z "$WEB_BACKEND_CORS_ALLOWED_ORIGINS" ]; then
-        read -p "Additional CORS origins (comma-separated) []: " WEB_BACKEND_CORS_ALLOWED_ORIGINS
+    if [ -z "$CORS_ALLOWED_ORIGINS" ]; then
+        read -p "Additional CORS origins (comma-separated) []: " CORS_ALLOWED_ORIGINS
     fi
 }
 
@@ -443,12 +430,12 @@ JVM_MIN_MEMORY=$JVM_MIN_MEMORY
 # ===========================================
 # RUST WEB BACKEND CONFIGURATION
 # ===========================================
-WEB_BACKEND_URL=$WEB_BACKEND_URL
-WEB_BACKEND_ADDRESS=$WEB_BACKEND_ADDRESS
-WEB_BACKEND_PORT=$WEB_BACKEND_PORT
-WEB_BACKEND_MAX_THREADS=$WEB_BACKEND_MAX_THREADS
-WEB_BACKEND_SESSION_EXPIRATION=$WEB_BACKEND_SESSION_EXPIRATION
-WEB_BACKEND_CORS_ALLOWED_ORIGINS=$WEB_BACKEND_CORS_ALLOWED_ORIGINS
+POCKET_HOST=$POCKET_HOST
+POCKET_PORT=$POCKET_PORT
+BACKEND_URL=$BACKEND_URL
+POCKET_MAX_THREADS=$POCKET_MAX_THREADS
+POCKET_SESSION_EXPIRATION=$POCKET_SESSION_EXPIRATION
+CORS_ALLOWED_ORIGINS=$CORS_ALLOWED_ORIGINS
 
 # ===========================================
 # GENERAL CONFIGURATION
@@ -485,11 +472,17 @@ display_configuration_summary() {
     echo "   JVM Memory: $JVM_MIN_MEMORY - $JVM_MAX_MEMORY"
     echo
     echo "🦀 Rust Web Backend:"
-    echo "   URL: $WEB_BACKEND_URL"
-    echo "   Max Threads: $WEB_BACKEND_MAX_THREADS"
-    echo "   Session Expiration: $WEB_BACKEND_SESSION_EXPIRATION seconds"
-    if [ -n "$WEB_BACKEND_CORS_ALLOWED_ORIGINS" ]; then
-        echo "   CORS Origins: $WEB_BACKEND_CORS_ALLOWED_ORIGINS"
+    echo "   Host: $POCKET_HOST"
+    echo "   Port: $POCKET_PORT"
+    if [ -n "$BACKEND_URL" ]; then
+        echo "   Frontend URL: $BACKEND_URL (custom)"
+    else
+        echo "   Frontend URL: http://$POCKET_HOST:$POCKET_PORT (auto)"
+    fi
+    echo "   Max Threads: $POCKET_MAX_THREADS"
+    echo "   Session Expiration: $POCKET_SESSION_EXPIRATION seconds"
+    if [ -n "$CORS_ALLOWED_ORIGINS" ]; then
+        echo "   CORS Origins: $CORS_ALLOWED_ORIGINS"
     fi
     echo
     echo "⚙️  General:"
@@ -536,7 +529,11 @@ echo -e "\${GREEN}✅ Services started successfully!\${NC}"
 echo
 echo "📋 Service URLs:"
 echo "   Java Backend: \$SERVER_URL"
-echo "   Rust Web Backend: \$WEB_BACKEND_URL"
+if [ -n "\$BACKEND_URL" ]; then
+    echo "   Rust Web Backend: \$BACKEND_URL"
+else
+    echo "   Rust Web Backend: http://\$POCKET_HOST:\$POCKET_PORT"
+fi
 echo "   Database: localhost:3306"
 echo
 echo "🔧 Management commands:"

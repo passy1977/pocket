@@ -123,17 +123,18 @@ services:
     networks:
       - pocket-network
     ports:
-      - "${WEB_BACKEND_PORT:-8080}:${WEB_BACKEND_PORT:-8080}"
+      - "${POCKET_PORT:-8080}:${POCKET_PORT:-8080}"
     volumes:
       # Application logs
       - pocket_web_logs:/var/log/pocket-web
     environment:
       # Web backend configuration
-      ADDRESS: ${WEB_BACKEND_ADDRESS:-0.0.0.0}
-      PORT: ${WEB_BACKEND_PORT:-8080}
-      MAX_THREADS: ${WEB_BACKEND_MAX_THREADS:-2}
-      SESSION_EXPIRATION: ${WEB_BACKEND_SESSION_EXPIRATION:-300}
-      CORS_ALLOWED_ORIGINS: ${WEB_BACKEND_CORS_ALLOWED_ORIGINS:-}
+      POCKET_HOST: ${POCKET_HOST:-0.0.0.0}
+      POCKET_PORT: ${POCKET_PORT:-8080}
+      BACKEND_URL: ${BACKEND_URL:-}
+      POCKET_MAX_THREADS: ${POCKET_MAX_THREADS:-2}
+      POCKET_SESSION_EXPIRATION: ${POCKET_SESSION_EXPIRATION:-300}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-}
       
       # Database configuration
       DB_HOST: pocket-db
@@ -150,7 +151,7 @@ services:
       pocket-db:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:${WEB_BACKEND_PORT:-8080}/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:${POCKET_PORT:-8080}/health"]
       interval: 30s
       timeout: 10s
       retries: 5
