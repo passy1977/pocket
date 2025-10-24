@@ -517,6 +517,7 @@ fi
 # Colors
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
 NC='\033[0m'
 
 echo -e "\${BLUE}🚀 Starting Pocket Full Stack...\${NC}"
@@ -540,6 +541,33 @@ echo "🔧 Management commands:"
 echo "   View logs: $COMPOSE_CMD logs -f"
 echo "   Stop services: $COMPOSE_CMD down"
 echo "   Restart: $COMPOSE_CMD restart"
+echo
+echo -e "\${BLUE}📦 Installing CLI tools...\${NC}"
+
+# Create pocket-device wrapper
+echo -e "\${YELLOW}Creating /usr/local/bin/pocket-device...\${NC}"
+sudo tee /usr/local/bin/pocket-device > /dev/null << 'POCKET_DEVICE_EOF'
+#!/bin/bash
+sudo docker exec pocket-backend /var/www/pocket-device "\$@"
+POCKET_DEVICE_EOF
+sudo chmod +x /usr/local/bin/pocket-device
+echo -e "\${GREEN}✅ pocket-device command installed\${NC}"
+
+# Create pocket-user wrapper
+echo -e "\${YELLOW}Creating /usr/local/bin/pocket-user...\${NC}"
+sudo tee /usr/local/bin/pocket-user > /dev/null << 'POCKET_USER_EOF'
+#!/bin/bash
+sudo docker exec pocket-backend /var/www/pocket-user "\$@"
+POCKET_USER_EOF
+sudo chmod +x /usr/local/bin/pocket-user
+echo -e "\${GREEN}✅ pocket-user command installed\${NC}"
+
+echo
+echo -e "\${GREEN}🎉 Setup complete!\${NC}"
+echo
+echo "💡 CLI tools available:"
+echo "   pocket-device - Manage pocket devices"
+echo "   pocket-user   - Manage pocket users"
 EOF
     
     chmod +x "start_pocket.sh"
@@ -634,6 +662,17 @@ if [ -d "$VOLUMES_DIR" ]; then
     echo -e "\${GREEN}✅ Volume directories removed\${NC}"
 fi
 
+# Remove CLI tools from /usr/local/bin
+echo -e "\${BLUE}Removing CLI tools...\${NC}"
+if [ -f "/usr/local/bin/pocket-device" ]; then
+    sudo rm -f /usr/local/bin/pocket-device
+    echo -e "\${GREEN}✅ Removed /usr/local/bin/pocket-device\${NC}"
+fi
+if [ -f "/usr/local/bin/pocket-user" ]; then
+    sudo rm -f /usr/local/bin/pocket-user
+    echo -e "\${GREEN}✅ Removed /usr/local/bin/pocket-user\${NC}"
+fi
+
 # Remove generated scripts (optional)
 read -p "Remove generated scripts (start_pocket.sh, stop_pocket.sh, clean_pocket.sh)? [y/N]: " remove_scripts
 if [[ "\$remove_scripts" =~ ^[Yy]\$ ]]; then
@@ -672,11 +711,17 @@ display_final_info() {
     echo "1. Build the Docker images:"
     echo "   ./build_docker.sh"
     echo
-    echo "2. Start the services:"
+    echo "2. Start the services (will also install CLI tools):"
     echo "   ./start_pocket.sh"
     echo
     echo "3. Check service status:"
     echo "   $COMPOSE_CMD ps"
+    echo
+    echo "💡 CLI Tools:"
+    echo "============"
+    echo "After running ./start_pocket.sh, these commands will be available:"
+    echo "   pocket-device - Manage pocket devices"
+    echo "   pocket-user   - Manage pocket users"
     echo
     echo "🔐 Security Notes:"
     echo "================="
