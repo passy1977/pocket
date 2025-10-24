@@ -2,4 +2,5 @@
 start_pocket.sh
 stop_pocket.sh
 clean_pocket.sh
+clean_images.sh
 docker-volumes
