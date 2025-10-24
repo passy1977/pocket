@@ -47,7 +47,7 @@ services:
       - "${SERVER_PORT:-8081}:8081"
     volumes:
       # Application logs
-      - pocket_logs:/var/log/pocket
+      - ./docker-volumes/pocket-logs:/var/log/pocket
       # Optional: Custom configuration override
       - ./docker-volumes/pocket5-config.yaml:/var/www/scripts/pocket5-config.yaml:ro
     environment:
@@ -126,7 +126,7 @@ services:
       - "${POCKET_PORT:-8080}:${POCKET_PORT:-8080}"
     volumes:
       # Application logs
-      - pocket_web_logs:/var/log/pocket-web
+      - ./docker-volumes/pocket-web-logs:/var/log/pocket-web
     environment:
       # Web backend configuration
       POCKET_HOST: ${POCKET_HOST:-0.0.0.0}
@@ -171,12 +171,6 @@ services:
 volumes:
   pocket_db_data:
     name: pocket-db-data
-    driver: local
-  pocket_logs:
-    name: pocket-logs
-    driver: local
-  pocket_web_logs:
-    name: pocket-web-logs
     driver: local
 
 # Custom network for service communication
