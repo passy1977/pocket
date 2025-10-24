@@ -135,20 +135,13 @@ services:
       POCKET_MAX_THREADS: ${POCKET_MAX_THREADS:-2}
       POCKET_SESSION_EXPIRATION: ${POCKET_SESSION_EXPIRATION:-300}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-}
-      
-      # Database configuration
-      DB_HOST: pocket-db
-      DB_PORT: 3306
-      DB_NAME: pocket5
-      DB_USERNAME: ${DB_USERNAME:-pocket_user}
-      DB_PASSWORD: ${DB_PASSWORD:-user_password_change_me}
-      
+
       # Logging configuration
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       
     restart: unless-stopped
     depends_on:
-      pocket-db:
+      pocket-backend:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:${POCKET_PORT:-8080}/health"]

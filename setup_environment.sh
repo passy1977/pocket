@@ -258,8 +258,8 @@ collect_java_backend_config() {
     fi
     
     if [ -z "$ADMIN_USER" ]; then
-        read -p "Admin username [admin]: " ADMIN_USER
-        ADMIN_USER=${ADMIN_USER:-admin}
+        read -p "Admin username [admin@pocket.local]: " ADMIN_USER
+        ADMIN_USER=${ADMIN_USER:-admin@pocket.local}
     fi
     
     if [ -z "$ADMIN_PASSWD" ]; then
