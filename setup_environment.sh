@@ -85,7 +85,14 @@ generate_password() {
 
 # Function to generate AES IV (16 characters)
 generate_aes_iv() {
-    openssl rand -base64 12 | tr -d "=+/" | cut -c1-16
+    # Generate enough random data to ensure we have at least 16 characters after filtering
+    while true; do
+        iv=$(openssl rand -base64 24 | tr -d "=+/" | cut -c1-16)
+        if [ ${#iv} -eq 16 ]; then
+            echo "$iv"
+            return 0
+        fi
+    done
 }
 
 # Function to validate AES IV
@@ -756,10 +763,12 @@ fi
 
 # Remove pocket-backend image
 echo -e "\${BLUE}Removing pocket-backend image...\${NC}"
-if $CONTAINER_RUNTIME images | grep -q "pocket-backend"; then
-    if $CONTAINER_RUNTIME rmi pocket-backend:latest 2>/dev/null; then
+BACKEND_IMAGE=\$($CONTAINER_RUNTIME images | grep "pocket-backend" | awk '{print \$1":"\$2}' | head -1)
+if [ -n "\$BACKEND_IMAGE" ]; then
+    echo -e "\${BLUE}Found image: \$BACKEND_IMAGE\${NC}"
+    if $CONTAINER_RUNTIME rmi "\$BACKEND_IMAGE" 2>/dev/null; then
         echo -e "\${GREEN}✅ pocket-backend image removed\${NC}"
-    elif $CONTAINER_RUNTIME rmi -f pocket-backend:latest 2>/dev/null; then
+    elif $CONTAINER_RUNTIME rmi -f "\$BACKEND_IMAGE" 2>/dev/null; then
         echo -e "\${GREEN}✅ pocket-backend image force removed\${NC}"
     else
         echo -e "\${YELLOW}⚠️  Could not remove pocket-backend image (may be in use)\${NC}"
@@ -770,10 +779,12 @@ fi
 
 # Remove pocket-web-backend image
 echo -e "\${BLUE}Removing pocket-web-backend image...\${NC}"
-if $CONTAINER_RUNTIME images | grep -q "pocket-web-backend"; then
-    if $CONTAINER_RUNTIME rmi pocket-web-backend:latest 2>/dev/null; then
+WEB_BACKEND_IMAGE=\$($CONTAINER_RUNTIME images | grep "pocket-web-backend" | awk '{print \$1":"\$2}' | head -1)
+if [ -n "\$WEB_BACKEND_IMAGE" ]; then
+    echo -e "\${BLUE}Found image: \$WEB_BACKEND_IMAGE\${NC}"
+    if $CONTAINER_RUNTIME rmi "\$WEB_BACKEND_IMAGE" 2>/dev/null; then
         echo -e "\${GREEN}✅ pocket-web-backend image removed\${NC}"
-    elif $CONTAINER_RUNTIME rmi -f pocket-web-backend:latest 2>/dev/null; then
+    elif $CONTAINER_RUNTIME rmi -f "\$WEB_BACKEND_IMAGE" 2>/dev/null; then
         echo -e "\${GREEN}✅ pocket-web-backend image force removed\${NC}"
     else
         echo -e "\${YELLOW}⚠️  Could not remove pocket-web-backend image (may be in use)\${NC}"
