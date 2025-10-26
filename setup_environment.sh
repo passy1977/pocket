@@ -384,7 +384,14 @@ collect_web_app_config() {
     
     if [ -z "$CORS_ALLOWED_ORIGINS" ]; then
         while true; do
-            read -p "CORS allowed origins (comma-separated, REQUIRED): " CORS_ALLOWED_ORIGINS
+            # Use BACKEND_URL as default suggestion if it was provided
+            if [ -n "$BACKEND_URL" ]; then
+                read -p "CORS allowed origins (comma-separated, REQUIRED) [$BACKEND_URL]: " CORS_ALLOWED_ORIGINS
+                CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-$BACKEND_URL}
+            else
+                read -p "CORS allowed origins (comma-separated, REQUIRED): " CORS_ALLOWED_ORIGINS
+            fi
+            
             if [ -n "$CORS_ALLOWED_ORIGINS" ]; then
                 log_success "CORS origins set: $CORS_ALLOWED_ORIGINS"
                 break
