@@ -554,6 +554,8 @@ echo "   Database: localhost:3306"
 echo
 echo "🔧 Management commands:"
 echo "   View logs: $COMPOSE_CMD logs -f"
+echo "   View Backend logs: tail -n 100 -f docker-volumes/pocket-logs/application.log"
+echo "   View Web App logs: tail -n 100 -f docker-volumes/pocket-web-logs/application.log"
 echo "   Stop services: $COMPOSE_CMD down"
 echo "   Restart: $COMPOSE_CMD restart"
 echo
