@@ -400,6 +400,18 @@ collect_web_app_config() {
             fi
         done
     fi
+    
+    # Enable logs in release build (optional)
+    if [ -z "$POCKET_ENABLE_LOGS" ]; then
+        read -p "Enable logs in release build? [N/y]: " enable_logs
+        if [[ "$enable_logs" =~ ^[Yy]$ ]]; then
+            POCKET_ENABLE_LOGS=1
+            log_success "Logs enabled in release build"
+        else
+            POCKET_ENABLE_LOGS=0
+            log_info "Logs disabled in release build (default)"
+        fi
+    fi
 }
 
 # Function to collect general configuration
@@ -458,6 +470,7 @@ BACKEND_URL=$BACKEND_URL
 POCKET_MAX_THREADS=$POCKET_MAX_THREADS
 POCKET_SESSION_EXPIRATION=$POCKET_SESSION_EXPIRATION
 CORS_ALLOWED_ORIGINS=$CORS_ALLOWED_ORIGINS
+POCKET_ENABLE_LOGS=$POCKET_ENABLE_LOGS
 
 # ===========================================
 # GENERAL CONFIGURATION
@@ -505,6 +518,11 @@ display_configuration_summary() {
     echo "   Session Expiration: $POCKET_SESSION_EXPIRATION seconds"
     if [ -n "$CORS_ALLOWED_ORIGINS" ]; then
         echo "   CORS Origins: $CORS_ALLOWED_ORIGINS"
+    fi
+    if [ "$POCKET_ENABLE_LOGS" = "1" ]; then
+        echo "   Release Logs: Enabled"
+    else
+        echo "   Release Logs: Disabled"
     fi
     echo
     echo "⚙️  General:"

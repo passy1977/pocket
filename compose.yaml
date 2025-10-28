@@ -118,6 +118,8 @@ services:
     build:
       context: pocket-web-backend/
       dockerfile: Dockerfile
+      args:
+        POCKET_ENABLE_LOGS: ${POCKET_ENABLE_LOGS:-0}
     image: pocket-web-backend:5.0.0
     container_name: pocket-web-backend
     networks:
