@@ -99,7 +99,7 @@ services:
       pocket-db:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      test: ["CMD", "sh", "-c", "curl -f -u \"$${ADMIN_USER}:$${ADMIN_PASSWD}\" -H \"X-API-Key: $${CORS_HEADER_TOKEN}\" http://localhost:8081/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 5
