@@ -308,6 +308,22 @@ collect_backend_config() {
         read -p "Additional CORS origins (comma-separated) []: " CORS_ADDITIONAL_ORIGINS
     fi
     
+    if [ -z "$CORS_ENABLE_STRICT" ]; then
+        read -p "Enable strict CORS validation? [true/false] [false]: " CORS_ENABLE_STRICT
+        CORS_ENABLE_STRICT=${CORS_ENABLE_STRICT:-false}
+    fi
+    
+    if [ -z "$CORS_HEADER_TOKEN" ]; then
+        read -p "Generate secure CORS header token automatically? [Y/n]: " auto_cors_token
+        if [[ "$auto_cors_token" =~ ^[Nn]$ ]]; then
+            read -p "Enter CORS header token name [X-API-Key]: " CORS_HEADER_TOKEN
+            CORS_HEADER_TOKEN=${CORS_HEADER_TOKEN:-X-API-Key}
+        else
+            CORS_HEADER_TOKEN="$(generate_password 16)"
+            log_success "Generated secure CORS header token"
+        fi
+    fi
+    
     # JVM configuration
     if [ -z "$JVM_MAX_MEMORY" ]; then
         read -p "JVM Max Memory [512m]: " JVM_MAX_MEMORY
@@ -456,6 +472,8 @@ ADMIN_PASSWD=$ADMIN_PASSWD
 SERVER_URL=$SERVER_URL
 SERVER_PORT=$SERVER_PORT
 CORS_ADDITIONAL_ORIGINS=$CORS_ADDITIONAL_ORIGINS
+CORS_ENABLE_STRICT=$CORS_ENABLE_STRICT
+CORS_HEADER_TOKEN=$CORS_HEADER_TOKEN
 
 # JVM Configuration
 JVM_MAX_MEMORY=$JVM_MAX_MEMORY

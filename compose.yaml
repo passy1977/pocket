@@ -74,6 +74,8 @@ services:
       
       # CORS configuration
       CORS_ADDITIONAL_ORIGINS: ${CORS_ADDITIONAL_ORIGINS:-}
+      CORS_ENABLE_STRICT: ${CORS_ENABLE_STRICT:-false}
+      CORS_HEADER_TOKEN: ${CORS_HEADER_TOKEN:-X-Requested-With}
       
       # Logging configuration
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
