@@ -622,12 +622,57 @@ POCKET_USER_EOF
 sudo chmod +x /usr/local/bin/pocket-user
 echo -e "\${GREEN}✅ pocket-user command installed\${NC}"
 
+# Create pocket-device-list wrapper
+echo -e "\${YELLOW}Creating /usr/local/bin/pocket-device-list...\${NC}"
+sudo tee /usr/local/bin/pocket-device-list > /dev/null << 'POCKET_DEVICE_LIST_EOF'
+#!/bin/bash
+# ===========================================
+# Pocket Device List
+# ===========================================
+# Script to list all devices from the pocket5 database
+
+set -e
+
+# Determine the workspace root
+WORKSPACE_ROOT="/opt/pocket"
+
+# Check if .env file exists
+ENV_FILE="\${WORKSPACE_ROOT}/.env"
+if [ ! -f "\$ENV_FILE" ]; then
+    echo "Error: .env file not found at \$ENV_FILE"
+    exit 1
+fi
+
+# Load DB_ROOT_PASSWORD from .env file
+DB_ROOT_PASSWORD=\$(grep '^DB_ROOT_PASSWORD=' "\$ENV_FILE" | cut -d '=' -f2)
+
+if [ -z "\$DB_ROOT_PASSWORD" ]; then
+    echo "Error: DB_ROOT_PASSWORD not found in .env file"
+    exit 1
+fi
+
+# Check if pocket-db container is running
+if ! sudo docker ps --format '{{.Names}}' | grep -q '^pocket-db\$'; then
+    echo "Error: pocket-db container is not running"
+    echo "Please start the Pocket stack first with: cd \$WORKSPACE_ROOT && ./start_pocket.sh"
+    exit 1
+fi
+
+# Execute the query
+echo "=== Pocket Devices List ==="
+echo ""
+sudo docker exec -i pocket-db mariadb -u root -p"\${DB_ROOT_PASSWORD}" pocket5 -e "SELECT id, note, uuid FROM devices;"
+POCKET_DEVICE_LIST_EOF
+sudo chmod +x /usr/local/bin/pocket-device-list
+echo -e "\${GREEN}✅ pocket-device-list command installed\${NC}"
+
 echo
 echo -e "\${GREEN}🎉 Setup complete!\${NC}"
 echo
 echo "💡 CLI tools available:"
-echo "   pocket-device - Manage pocket devices"
-echo "   pocket-user   - Manage pocket users"
+echo "   pocket-device      - Manage pocket devices"
+echo "   pocket-user        - Manage pocket users"
+echo "   pocket-device-list - List all devices from database"
 EOF
     
     chmod +x "start_pocket.sh"
@@ -731,6 +776,10 @@ fi
 if [ -f "/usr/local/bin/pocket-user" ]; then
     sudo rm -f /usr/local/bin/pocket-user
     echo -e "\${GREEN}✅ Removed /usr/local/bin/pocket-user\${NC}"
+fi
+if [ -f "/usr/local/bin/pocket-device-list" ]; then
+    sudo rm -f /usr/local/bin/pocket-device-list
+    echo -e "\${GREEN}✅ Removed /usr/local/bin/pocket-device-list\${NC}"
 fi
 
 # Remove generated scripts (optional)
@@ -899,8 +948,9 @@ display_final_info() {
     echo "💡 CLI Tools:"
     echo "============"
     echo "After running ./start_pocket.sh, these commands will be available:"
-    echo "   pocket-device - Manage pocket devices"
-    echo "   pocket-user   - Manage pocket users"
+    echo "   pocket-device      - Manage pocket devices"
+    echo "   pocket-user        - Manage pocket users"
+    echo "   pocket-device-list - List all devices from database"
     echo
     echo "🔐 Security Notes:"
     echo "================="
