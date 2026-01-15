@@ -45,6 +45,7 @@ services:
       - pocket-network
     ports:
       - "${SERVER_PORT:-8081}:8081"
+      - "5005:5005"  # Debug port
     volumes:
       # Application logs
       - ./docker-volumes/pocket-logs:/var/log/pocket
@@ -90,6 +91,7 @@ services:
         -XX:HeapDumpPath=/var/log/pocket/
         -Dfile.encoding=UTF-8
         -Djava.security.egd=file:/dev/./urandom
+        -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005
       
       # Database connection URL (constructed automatically)
       SPRING_DATASOURCE_URL: jdbc:mariadb://pocket-db:3306/pocket5?useUnicode=true&useJDBCCompliantTimezoneShift=true&useLegacyDatetimeCode=false&serverTimezone=UTC&autoReconnect=true&sslMode=DISABLED

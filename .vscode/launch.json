@@ -1,0 +1,38 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Debug Pocket Backend with .env",
+            "request": "launch",
+            "mainClass": "it.salsi.pocket.PocketApplication",
+            "projectName": "pocket-backend",
+            "cwd": "${workspaceFolder}/pocket-backend",
+            "envFile": "${workspaceFolder}/.env",
+            "vmArgs": [
+                "-Xms256m",
+                "-Xmx512m",
+                "-Dserver.port=${env:SERVER_PORT}",
+                "-Dspring.datasource.url=jdbc:mysql://localhost:3306/pocket5",
+                "-Dspring.datasource.username=${env:DB_USERNAME}",
+                "-Dspring.datasource.password=${env:DB_PASSWORD}",
+                "-Daes.cbc.iv=${env:AES_CBC_IV}",
+                "-Dadmin.user=${env:ADMIN_USER}",
+                "-Dadmin.passwd=${env:ADMIN_PASSWD}",
+                "-Dserver.url=${env:SERVER_URL}",
+                "-Dcors.additional.origins=${env:CORS_ADDITIONAL_ORIGINS}",
+                "-Dcors.enable.strict=${env:CORS_ENABLE_STRICT}",
+                "-Dcors.header.token=${env:CORS_HEADER_TOKEN}",
+                "-Dlogging.level.root=${env:LOG_LEVEL}"
+            ]
+        },
+        {
+            "type": "java",
+            "name": "Attach to Pocket Backend Container",
+            "request": "attach",
+            "hostName": "localhost",
+            "port": 5005,
+            "projectName": "pocket-backend"
+        }
+    ]
+}
