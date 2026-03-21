@@ -90,55 +90,71 @@ The platform is designed with security as the primary concern, implementing end-
 Pocket follows a modern multi-tier architecture designed for security, performance, and maintainability:
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     Client Applications                      │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐   │
-│  │   Web    │  │   iOS    │  │   CLI    │  │  Mobile  │   │
-│  │ Browser  │  │   App    │  │  Tools   │  │   Apps   │   │
-│  └──────────┘  └──────────┘  └──────────┘  └──────────┘   │
-└─────────────────────────────────────────────────────────────┘
-                            ▼
-┌─────────────────────────────────────────────────────────────┐
-│              Pocket Web Backend (Rust/Actix)                │
-│  • Rate Limiting          • Static File Serving             │
-│  • Session Management     • CORS Handling                   │
-│  • Request Routing        • Security Headers                │
-│  Port: 8080                                                  │
-└─────────────────────────────────────────────────────────────┘
-                            ▼
-┌─────────────────────────────────────────────────────────────┐
-│           Pocket Backend (Java/Spring Boot)                  │
-│  • Business Logic         • Authentication                   │
-│  • REST API              • Authorization                    │
-│  • Data Encryption       • User Management                  │
-│  • Session Validation    • Field/Group Management           │
-│  Port: 8081                                                  │
-└─────────────────────────────────────────────────────────────┘
-                            ▼
-┌─────────────────────────────────────────────────────────────┐
-│              Pocket Lib (C++ Core Library)                   │
-│  • Cryptographic Operations  • Data Validation              │
-│  • Performance-Critical Code • Cross-Platform Support       │
-└─────────────────────────────────────────────────────────────┘
-                            ▼
-┌─────────────────────────────────────────────────────────────┐
-│                  Database Layer (MariaDB)                    │
-│  • User Data             • Encrypted Credentials            │
-│  • Session Store         • Audit Logs                       │
-│  Port: 3306                                                  │
-└─────────────────────────────────────────────────────────────┘
+           ┌──────────────┐
+           │   Web App    │
+           │  (Browser)   │
+           └──────┬───────┘
+                  │
+                  ▼
+┌────────────────────────────────┐          ┌──────────────┐
+│   Pocket Web Backend (Rust)    │          │  iOS Client  │
+│  • Rate Limiting               │          │  (Native)    │
+│  • Session Management          │          │              │
+│  • Static File Serving         │          │              │
+│  • CORS & Security Headers     │          │              │
+│  • C++ Bridge Interface        │          │              │
+│  Port: 8080                    │          │              │
+└─────────────────┬──────────────┘          └────────┬─────┘
+                  │                                  │
+                  └──────────────┬───────────────────┘
+                                 ▼
+        ┌────────────────────────────────────────────┐
+        │     Pocket Lib (C++ Core Library)          │
+        │  • Cryptographic Operations (RSA/AES)      │
+        │  • Performance-Critical Code               │
+        │  • User/Field/Group Models                 │
+        │  • Business Logic Bridge                   │
+        │  • Cross-Platform Support                  │
+        └────────────────────┬───────────────────────┘
+                             ▼
+        ┌────────────────────────────────────────────┐
+        │   Pocket Backend (Java/Spring Boot)        │
+        │  • REST API Endpoints                      │
+        │  • Authentication & Authorization          │
+        │  • Data Persistence                        │
+        │  • Session Validation                      │
+        │  • User/Field/Group Management             │
+        │  Port: 8081                                │
+        └────────────────────┬───────────────────────┘
+                             ▼
+        ┌────────────────────────────────────────────┐
+        │      Database Layer (MariaDB)              │
+        │  • User Data                               │
+        │  • Encrypted Credentials                   │
+        │  • Session Store                           │
+        │  • Audit Logs                              │
+        │  Port: 3306                                │
+        └────────────────────────────────────────────┘
 ```
 
 ### Component Communication Flow
 
-1. **Client → Web Backend**: Clients send HTTPS requests to the Rust-based web server
-2. **Rate Limiting**: Web backend applies IP and session-based rate limits
-3. **Session Validation**: Session IDs are cryptographically verified
-4. **Backend Processing**: Validated requests are forwarded to Java backend
-5. **Business Logic**: Spring Boot services process the request
-6. **C++ Library**: Performance-critical operations delegated to native code
-7. **Database Operations**: Encrypted data persisted to MariaDB
-8. **Response**: Encrypted response sent back through the chain
+1. **Web App → Web Backend**: Browser clients connect to Rust server (port 8080) for web interface
+2. **iOS Client → Pocket Lib**: iOS native app communicates directly with C++ library
+3. **Web Backend → Pocket Lib**: Rust server invokes C++ library via bridge interface
+4. **Rate Limiting & Security**: Web backend applies rate limits, session validation, and security headers
+5. **C++ Library Processing**: Pocket Lib handles:
+   - Cryptographic operations (RSA, AES-CBC encryption/decryption)
+   - Data validation and business logic
+   - User/Field/Group model management
+   - Cross-platform compatibility layer
+6. **Backend Communication**: Pocket Lib communicates with Java backend via REST APIs (port 8081)
+7. **Business Logic**: Spring Boot services handle:
+   - Authentication and authorization
+   - Data persistence and retrieval
+   - Session management and validation
+8. **Database Operations**: Encrypted data persisted to MariaDB (port 3306)
+9. **Response Chain**: Data flows back through Pocket Lib → Client (Web Backend or iOS)
 
 ---
 
@@ -446,31 +462,34 @@ podman-compose build
 
 ### Environment Variables
 
-Create a `.env` file in the project root:
+The `.env` file is automatically generated by `setup_environment.sh`. For manual configuration, create a `.env` file in the project root:
 
 ```bash
-# Database Configuration
-DB_ROOT_PASSWORD=your_secure_root_password
-DB_USERNAME=pocket_user
-DB_PASSWORD=your_secure_user_password
+# ===========================================
+# POCKET FULL STACK CONFIGURATION
+# ===========================================
+# Generated on: <timestamp>
+# Container Runtime: docker | podman
 
-# Backend Configuration
+# ===========================================
+# DATABASE CONFIGURATION
+# ===========================================
+DB_ROOT_PASSWORD=your_secure_root_password_here
+DB_USERNAME=pocket_user
+DB_PASSWORD=your_secure_user_password_here
+
+# ===========================================
+# BACKEND CONFIGURATION
+# ===========================================
+# Security Configuration
+AES_CBC_IV=your_16_char_iv_  # CRITICAL: Exactly 16 characters
+ADMIN_USER=admin@example.com
+ADMIN_PASSWD=your_secure_admin_password_here
+
+# Server Configuration
 SERVER_URL=http://localhost:8081
 SERVER_PORT=8081
-AES_CBC_IV=your_16_char_iv_  # CRITICAL: Exactly 16 characters
-ADMIN_USER=admin
-ADMIN_PASSWD=your_secure_admin_password
-
-# Web Backend Configuration
-POCKET_HOST=0.0.0.0
-POCKET_PORT=8080
-POCKET_MAX_THREADS=4
-POCKET_SESSION_EXPIRATION=300  # seconds
-BACKEND_URL=http://pocket-backend:8081
-
-# CORS Configuration
-CORS_ADDITIONAL_ORIGINS=https://yourdomain.com
-CORS_ALLOWED_ORIGINS=https://yourdomain.com
+CORS_ADDITIONAL_ORIGINS=
 CORS_ENABLE_STRICT=false
 CORS_HEADER_TOKEN=X-Requested-With
 
@@ -478,9 +497,31 @@ CORS_HEADER_TOKEN=X-Requested-With
 JVM_MAX_MEMORY=512m
 JVM_MIN_MEMORY=256m
 
-# Logging
+# ===========================================
+# WEB APP CONFIGURATION
+# ===========================================
+POCKET_HOST=0.0.0.0
+POCKET_PORT=8080
+BACKEND_URL=http://pocket-backend:8081
+POCKET_MAX_THREADS=4
+POCKET_SESSION_EXPIRATION=300
+CORS_ALLOWED_ORIGINS=http://localhost:8080
+POCKET_ENABLE_LOGS=0  # 1 to enable logs in release builds
+
+# ===========================================
+# GENERAL CONFIGURATION
+# ===========================================
 LOG_LEVEL=INFO
+
+# ===========================================
+# INTERNAL CONFIGURATION (DO NOT MODIFY)
+# ===========================================
+COMPOSE_PROJECT_NAME=pocket
+NETWORK_NAME=pocket-network
+VOLUMES_PATH=./docker-volumes
 ```
+
+**Note**: The `setup_environment.sh` script will generate secure random values for all passwords and keys automatically.
 
 ### Database Configuration
 
