@@ -276,7 +276,7 @@ Persistent storage for all application data.
 - **Network**: Open ports 8080, 8081, 3306
 
 #### Operating System
-- **Linux**: Ubuntu 20.04+, Debian 11+, RHEL 8+, Fedora 35+
+- **Linux**: Ubuntu 20.04+, Debian 12+, RHEL 8+, Fedora 35+
 - **macOS**: 11+ (Big Sur or later)
 - **Windows**: 10+ with WSL2 for Docker/Podman
 
