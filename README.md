@@ -6,7 +6,7 @@
 [![Docker](https://img.shields.io/badge/Docker%20%7C%20Podman-Ready-blue.svg)](https://www.docker.com/)
 [![License](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
-**Pocket** is a comprehensive, enterprise-grade secure credential and password management platform designed for both individual users and organizations. It provides local persistence with remote synchronization capabilities, ensuring your sensitive data is always encrypted, accessible, and synchronized across all your devices.
+**Pocket** is a comprehensive, enterprise-grade secure credential and password management platform designed for both individual users. It provides local persistence with remote synchronization capabilities, ensuring your sensitive data is always encrypted, accessible, and synchronized across all your devices.
 
 ---
 
@@ -285,37 +285,43 @@ cd pocket
 
 **Important**: Use `--recursive` to include all submodules (pocket-backend, pocket-web-backend, pocket-lib, pocket-web-frontend).
 
-### 2. Run Automated Setup
+### 2. Run Interactive Setup
 
 ```bash
-# Make scripts executable
-chmod +x setup_environment.sh start_pocket.sh stop_pocket.sh
+# Make the setup script executable
+chmod +x setup_environment.sh
 
-# Run the automated setup
+# Run the interactive configuration wizard
 ./setup_environment.sh
 ```
 
-The setup script will automatically:
-- ✅ Detect Docker or Podman
-- ✅ Generate secure passwords and encryption keys
-- ✅ Create environment configuration (.env file)
-- ✅ Set up Docker volumes
-- ✅ Create Docker network
-- ✅ Generate startup and maintenance scripts
+The setup script is **interactive** and will ask you configuration questions:
+- 🔍 **Container Runtime**: Docker or Podman detection
+- 🔐 **Security Settings**: Generate or provide encryption keys and passwords
+- 🌐 **Network Configuration**: Host, ports, and CORS settings
+- 📁 **Storage Options**: Docker volumes configuration
+
+The script will automatically:
+- ✅ Generate secure passwords and encryption keys (AES_CBC_IV, admin password)
+- ✅ Create environment configuration (`.env` file)
+- ✅ Set up Docker volumes and network
+- ✅ Generate management scripts (`start_pocket.sh`, `stop_pocket.sh`, `clean_pocket.sh`, `clean_images.sh`)
 
 ### 3. Start the Services
+
+After setup completes, start all services:
 
 ```bash
 ./start_pocket.sh
 ```
 
 This will:
-- Build Docker images for all components
-- Start MariaDB database
-- Start Pocket Backend
-- Start Pocket Web Backend
-- Install CLI management tools
-- Perform health checks
+- 🏗️ Build Docker images for all components
+- 🗄️ Start MariaDB database
+- ☕ Start Pocket Backend (Java/Spring Boot)
+- 🦀 Start Pocket Web Backend (Rust/Actix)
+- 🛠️ Install CLI management tools
+- ✅ Perform health checks
 
 ### 4. Verify Installation
 
