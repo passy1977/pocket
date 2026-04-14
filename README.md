@@ -8,7 +8,7 @@
 
 **Pocket** is a comprehensive, enterprise-grade secure credential and password management platform designed for both individual users. It provides local persistence with remote synchronization capabilities, ensuring your sensitive data is always encrypted, accessible, and synchronized across all your devices.
 
----
+--- 
 
 ## 📋 Table of Contents
 
