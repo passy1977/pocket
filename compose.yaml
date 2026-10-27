@@ -133,6 +133,8 @@ services:
     volumes:
       # Application logs
       - ./docker-volumes/pocket-web-logs:/var/log/pocket-web
+      # Persistent client credentials (survive rebuilds)
+      - ./docker-volumes/pocket-web-data:/home/pocket/.pocket-web-backend
     environment:
       # Web backend configuration
       POCKET_HOST: ${POCKET_HOST:-0.0.0.0}
